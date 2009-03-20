@@ -1,4 +1,15 @@
-﻿Element.implement({
+﻿/*
+Script: Element.Snapshot.js
+	Extends Element with a "snapshot" method that clones an element with it's current stylesheet intact.
+
+	License:
+		MIT-style license.
+
+	Authors:
+		Sebastian Markbåge
+*/
+
+Element.implement({
 
 	snapshot: function(contents, keepid){
 

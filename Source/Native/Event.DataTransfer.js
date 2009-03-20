@@ -1,4 +1,15 @@
-﻿var DataTransfer = new Native({
+﻿/*
+Script: Event.DataTransfer.js
+	Contains the dataTransfer object attached to events during drag & drop operations in HTML 5.
+
+	License:
+		MIT-style license.
+
+	Authors:
+		Sebastian Markbåge
+*/
+
+var DataTransfer = new Native({
 
 	legacy: window.DataTransfer,
 
@@ -91,7 +102,35 @@
 				e.stop();
 				bubbleUpDragEvent('drop', e, getDragEventTarget(e));
 			}
-		});	
+		});
+		
+		function getDragEventTarget(event){
+			var doc = event.target.ownerDocument, target,
+				ghost = currentOperation.ghost, display;
+			if(!ghost || !doc.elementFromPoint) return event.target;
+			display = ghost.style.display;
+			ghost.style.display = 'none';
+			target = doc.elementFromPoint(event.client.x, event.client.y);
+			ghost.style.display = display;
+			return target;
+		};
+
+		function bubbleUpDragEvent(type, event, target, relatedTarget){
+			var c;
+			event.target = target;
+			event.relatedTarget = relatedTarget;
+			event.stopPropagation = function(){ c = true; };
+			while(!c && target){
+				var events;
+				if(target.retrieve && (events = target.retrieve('events'))){
+					if(events[type])
+						events[type].keys.each(function(fn){ fn.apply(target, [event]); });
+					if((/enter|leave/).test(type) && events[type + 'self'] && relatedTarget && target != relatedTarget && relatedTarget.prefix != 'xul' && !target.hasChild(relatedTarget))
+						events[type + 'self'].keys.each(function(fn){ fn.apply(target, [event]); });
+				}
+				target = target.parentNode;
+			}
+		};
 	},
 
 	addElement: function(element){
@@ -179,7 +218,7 @@
 	}
 });
 
-DataTransfer.create = function(event, dragOp){
+DataTransfer.create = function(event, operation){
 	var dt = event.dataTransfer;
 	if(dt){
 		if(!dt.$extended){
@@ -188,7 +227,8 @@ DataTransfer.create = function(event, dragOp){
 		}
 		return dt;
 	}
-	if(dragOp)
+	if(operation)
 		return dragOp.dataTransfer = (dragOp.dataTransfer || new DataTransfer(dragOp));
 	return false; 
 };
+

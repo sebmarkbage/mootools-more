@@ -1,0 +1,1 @@
+﻿// Investigate Mozilla's input event
