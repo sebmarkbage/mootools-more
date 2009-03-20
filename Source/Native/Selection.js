@@ -1,4 +1,15 @@
-﻿Window.implement({
+﻿/*
+Script: Selection.js
+	Cross-browser consistent way to get the current selection as a single Range object.
+
+	License:
+		MIT-style license.
+
+	Authors:
+		Sebastian Markbåge
+*/
+
+Window.implement({
 	
 	getSelectionRange: function(){
 		if (this.getSelection){
@@ -33,21 +44,23 @@
 	}
 });
 
-Element.implement({
-	
-	getSelectionRange: function(){
-		return this.getWindow().getSelectionRange().limitTo(this);
-	},
-	
-	setSelectionRange: function(range){
-		range.limitTo(this);
-		range.select();
-	},
-	
-	select: function(){
-		var r = this.ownerDocument.newRange();
-		r.selectNodeContents(this);
-		r.select();
-	}
+[Document, Element].each(function(e){
+	e.implement({
 
+		getSelectionRange: function(){
+			return this.getWindow().getSelectionRange().limitTo(this);
+		},
+		
+		setSelectionRange: function(range){
+			range.limitTo(this);
+			range.select();
+		},
+		
+		select: function(){
+			var r = this.getDocument().newRange();
+			r.selectNodeContents(this);
+			r.select();
+		}
+
+	});
 });

@@ -2,8 +2,12 @@
 Script: Range.js
 	Provides a unified and consistent interface for IE and W3C compliant browsers to work with DOM ranges and selections.
 
-License:
-	MIT-style license.
+	License:
+		MIT-style license.
+
+	Authors:
+		Sebastian Markbåge
+
 */
 
 var Range = new Native({
@@ -15,10 +19,10 @@ var Range = new Native({
 	protect: true,
 
 	initialize: function(startContainer, startOffset, endContainer, endOffset){
-		var r = (startContainer ? startContainer.ownerDocument : document).newRange();
+		var range = (startContainer ? startContainer.ownerDocument : document).newRange();
 		if(startContainer) r.setStart(startContainer, startOffset);
 		if(endContainer) r.setEnd(endContainer, endOffset);
-		return r;
+		return range;
 	},
 	
 	afterImplement: function(key, value){
@@ -28,46 +32,46 @@ var Range = new Native({
 
 Range.Prototype = {};
 
-(function(){ // Wraps helper functions in context
+(function(){
 
 	function setRelativeTo(node, after, start){
-		var o = after ? 0 : -1, n = node.parentNode.firstChild;
-		do { o++; } while(n != node && (n = n.nextSibling));
+		var offset = after ? 0 : -1, n = node.parentNode.firstChild;
+		do { offset++; } while(n != node && (n = n.nextSibling));
 		setEndPointTo.apply(this, [node.parentNode, o, start]);
-	}
+	};
 	
 	function setEndPointTo(container, offset, start){
-		var s = start ? 'start' : 'end', r = start ? 'end' : 'start';
-		this[s + 'Container'] = container;
-		this[s + 'Offset'] = offset;
+		var point = start ? 'start' : 'end';
+		this[point + 'Container'] = container;
+		this[point + 'Offset'] = offset;
 		this.commonAncestorContainer = null;
 		
 		// TODO: Make it work with two adjecent text nodes
-		var t = container.ownerDocument.body.createTextRange();
+		var textrange = container.ownerDocument.body.createTextRange();
 		switch(container.nodeType){
 			case 1:
 				if (!offset || offset < 0 || offset >= container.childNodes.length){
-					t.moveToElementText(container);
-					t.collapse(!offset || offset < 0);
+					textrange.moveToElementText(container);
+					textrange.collapse(!offset || offset < 0);
 				} else {
 					var n = container.childNodes[offset];
 					if (n.nodeType == 1){
-						t.moveToElementText(n);
-						t.collapse(true);
+						textrange.moveToElementText(n);
+						textrange.collapse(true);
 					} else {
-						t.moveToElementText(n.previousSibling);
-						t.collapse(false);
+						textrange.moveToElementText(n.previousSibling);
+						textrange.collapse(false);
 					}
 				}
 			break;
 			case 3: case 4:
-				t.moveToElementText(container.previousSibling || container.parentNode);
-				t.collapse(!container.previousSibling);
-				t.moveStart('character', offset);
+				textrange.moveToElementText(container.previousSibling || container.parentNode);
+				textrange.collapse(!container.previousSibling);
+				textrange.moveStart('character', offset);
 			break;		
 		}
-		this.setEndPoint(start ? 'starttostart' : 'endtoend', t);
-	}
+		this.setEndPoint(start ? 'starttostart' : 'endtoend', textrange);
+	};
 	
 	function getEndPoint(start){
 		var cn = start ? 'startContainer' : 'endContainer', co = start ? 'startOffset' : 'endOffset';
@@ -114,7 +118,7 @@ Range.Prototype = {};
 			this[cn] = n; this[co] = o > - 1 ? o : n.childNodes.length;
 		}
 		return { container: this[cn], offset: this[co] };
-	}
+	};
 	
 	Range.implement({
 
@@ -126,11 +130,11 @@ Range.Prototype = {};
 		setStart: function(container, offset){ setEndPointTo.apply(this, [container, offset, true]); },
 		setEnd: function(container, offset){ setEndPointTo.apply(this, [container, offset, false]); },
 
+		getStart: getEndPoint.pass(true),
+		getEnd: getEndPoint.pass(false),
+
 		isCollapsed: function(){
-			if (!$defined(this.collapsed))
-				return this.compare('starttoend', this) == 0;
-			else 
-				return this.collapsed;
+			return (this.collapsed == undefined) ? this.compare('starttoend', this) == 0 : this.collapsed;
 		},
 		
 		collapseTo: function(start){
@@ -177,16 +181,30 @@ Range.Prototype = {};
 			how = how.toLowerCase();
 			if (Browser.Engine.trident || Browser.Engine.webkit) // Trident and webkit currently flip how-terms
 				how = how == 'endtostart' ? 'starttoend' : (how == 'starttoend' ? 'endtostart' : how);
-			if (how == 'outside') return this.compare('starttostart', range) <= 0 && this.compare('endtoend') >= 0;
-			else if (how == 'inside') return this.compare('starttostart', range) >= 0 && this.compare('endtoend') <= 0;
-			else if (this.compareBoundaryPoints) return this.compareBoundaryPoints({ 'starttostart': Range.prototype.START_TO_START, 'starttoend': Range.prototype.START_TO_END, 'endtostart': Range.prototype.END_TO_START, 'endtoend': Range.prototype.END_TO_END }[how], range);
-			else if (this.compareEndPoints) return this.compareEndPoints(how, range);
+			if (how == 'outside')
+				return this.compare('starttostart', range) <= 0 && this.compare('endtoend') >= 0;
+			else if (how == 'inside')
+				return this.compare('starttostart', range) >= 0 && this.compare('endtoend') <= 0;
+			else if (this.compareBoundaryPoints)
+				return this.compareBoundaryPoints({
+					'starttostart': Range.prototype.START_TO_START,
+					'starttoend': Range.prototype.START_TO_END,
+					'endtostart': Range.prototype.END_TO_START,
+					'endtoend': Range.prototype.END_TO_END
+				}[how], range);
+			else if (this.compareEndPoints)
+				return this.compareEndPoints(how, range);
 		},
 		
 		copy: function(how, range){
-			var s = how.toLowerCase().split('to');
-			if (this.setEndPoint){ this.setEndPoint({ 'starttoend': 'endtostart', 'endtostart' : 'starttoend' }[how] || how, range); this[s[1] + 'Container'] = null; this.commonAncestorContainer = null; }
-			else this[s[1] == 'start' ? 'setStart' : 'setEnd'].apply(this, [range[s[0] + 'Container'], range[s[0] + 'Offset']]);
+			var points = how.toLowerCase().split('to');
+			if (this.setEndPoint){
+				this.setEndPoint({ 'starttoend': 'endtostart', 'endtostart' : 'starttoend' }[how] || how, range);
+				this[points[1] + 'Container'] = null;
+				this.commonAncestorContainer = null;
+			} else {
+				this[points[1] == 'start' ? 'setStart' : 'setEnd'].apply(this, [range[points[0] + 'Container'], range[points[0] + 'Offset']]);
+			}
 		},
 
 		limitTo: function(range){
@@ -201,58 +219,68 @@ Range.Prototype = {};
 
 		getAncestor: function(){
 			if (!this.commonAncestorContainer) {
-				var a = this.parentElement(), t = this.duplicate();
-				t.moveToElementText(a);
-				this.commonAncestorContainer = (a != a.ownerDocument.body && (t.text == '' || t.compareEndPoints('StartToStart', this) > 0 || (t.compareEndPoints('EndToEnd', this) == 0 && t.compareEndPoints('EndToStart', this) == 0))) ? a.parentNode : a;
+				var ancestor = this.parentElement(), textrange = this.duplicate();
+				textrange.moveToElementText(ancestor);
+				this.commonAncestorContainer = (
+						ancestor != ancestor.ownerDocument.body && (
+							textrange.text == '' || t.compareEndPoints('StartToStart', this) > 0 ||
+							(textrange.compareEndPoints('EndToEnd', this) == 0 && textrange.compareEndPoints('EndToStart', this) == 0)
+						)
+					) ? ancestor.parentNode : ancestor;
 			}
 			return this.commonAncestorContainer;
 		},
 		
 		getElement: function(){
 			return (this.startContainer && this.startContainer.nodeType == 1 && this.startContainer == this.endContainer && this.endOffset - this.startOffset <= 1) ?
-				(this.endOffset - this.startOffset == 1 ? this.startContainer.childNodes[this.startOffset] : this.startContainer)
-					: false;
+				(this.endOffset - this.startOffset == 1 ? this.startContainer.childNodes[this.startOffset] : this.startContainer) :
+				false;
 		},
 		
-		getStart: function(){ return getEndPoint.apply(this, [true]); },
-		getEnd: function(){ return getEndPoint.apply(this, [false]); },
-		
 		getDomBookmark: function(context){
-			var st = this.getStart(), end = this.getEnd();
-			var getIndex = function(node){
-				var i = 0;
-				var n = context || st.container.ownerDocument;
-				while(n){
-					if (n == node) return i;
-					i++;
-					var nn = n.firstChild || n.nextSibling;
-					while (!nn && (n = n.parentNode)){
-						nn = n.nextSibling;
+			var start = this.getStart(),
+				end = this.getEnd(),
+				getIndex = function(node){
+					var i = 0;
+					var n = context || start.container.ownerDocument;
+					while(n){
+						if (n == node) return i;
+						i++;
+						var nn = n.firstChild || n.nextSibling;
+						while (!nn && (n = n.parentNode)){
+							nn = n.nextSibling;
+						}
+						n = nn;
 					}
-					n = nn;
-				}
-				return i;
+					return i;
+				};
+			return {
+				startNodeIndex: getIndex(start.container),
+				startOffset: start.offset,
+				endNodeIndex: getIndex(end.container),
+				endOffset: end.offset
 			};
-			return { startNodeIndex : getIndex(st.container), startOffset : st.offset, endNodeIndex : getIndex(end.container), endOffset : end.offset };
 		},
 		
 		moveToDomBookmark: function(bookmark, context){
-			var t = this, getNode = function(i){
-				var n = context || t.getStart().container.ownerDocument;
-				while(n){
-					if (i == 0) return n;
-					i--;
-					var nn = n.firstChild || n.nextSibling;
-					while (!nn && (n = n.parentNode)){
-						nn = n.nextSibling;
+			var self = this,
+				getNode = function(index){
+					var n = context || self.getStart().container.ownerDocument;
+					while(n){
+						if (index == 0) return n;
+						index--;
+						var nn = n.firstChild || n.nextSibling;
+						while (!nn && (n = n.parentNode)){
+							nn = n.nextSibling;
+						}
+						n = nn;
 					}
-					n = nn;
-				}
-				return n;
-			};
-			var sn = getNode(bookmark.startNodeIndex), en = getNode(bookmark.endNodeIndex);
-			if (sn) this.setStart(sn, bookmark.startOffset);
-			if (en) this.setEnd(en, bookmark.endOffset);
+					return n;
+				};
+			var startNode = getNode(bookmark.startNodeIndex),
+				endNode = getNode(bookmark.endNodeIndex);
+			if (startNode) this.setStart(startNode, bookmark.startOffset);
+			if (endNode) this.setEnd(endNode, bookmark.endOffset);
 			return this;
 		},
 		
@@ -260,21 +288,17 @@ Range.Prototype = {};
 			return this.text ? this.text : this.toString();
 		},
 		
-		getHtml: function(){
+		getHTML: function(){
 			//if(typeof this.htmlText != 'undefined') return this.htmlText;
-			var d = this.getStart().container.ownerDocument.createElement('div');
-			this.cloneContentsTo(d);
-			return d.innerHTML;
+			var temp = this.getStart().container.ownerDocument.createElement('div');
+			this.cloneContentsTo(temp);
+			return temp.innerHTML;
 		},
 		
 		cloneContentsTo: function(node){
-			var a = this.getAncestor(),
-				st = this.getStart(), sn = st.container, so = st.offset,
-				end = this.getEnd(), en = end.container, eo = end.offset;
-
-			var cs = this.cloneContents(), ln = node.lastChild;
-			if ($type(cs) != 'array') cs = $A(cs.childNodes);
-			cs.each(function(n){
+			var content = this.cloneContents(), ln = node.lastChild;
+			if ($type(content) != 'array') content = $A(content.childNodes);
+			content.each(function(n){
 				if (ln && (ln.nodeType == 3 || ln.nodeType == 4) && (n.nodeType == 3 || n.nodeType == 4))
 					ln.nodeValue += n.nodeValue;
 				else {
@@ -349,21 +373,79 @@ Range.Prototype = {};
 		},
 
 		clone: function(){
-			return Range.create(this.cloneRange ? this.cloneRange() : this.duplicate());
+			var copy = this.cloneRange ? this.cloneRange() : this.duplicate();
+			for(var k in this) if(copy[k] == undefined) copy[k] = this[k];
+			return copy;
 		},
 
 		select: function(){
 			if (window.getSelection){
-				var s = this.startContainer.ownerDocument.window.getSelection();
-				if (s.removeAllRanges && s.addRange) { s.removeAllRanges(); s.addRange(this); }
+				var selection = this.startContainer.ownerDocument.window.getSelection();
+				if (selection.removeAllRanges && selection.addRange) { selection.removeAllRanges(); selection.addRange(this); }
 			}
+		},
+		
+		forEachNode: function(fn, reverse, topDown){
+			if(sn == en && so == eo) return { fetch: $lambda(false) };
+
+			function getN(n, o, v, t, on){
+				if (!n.hasChildNodes()) return n;
+				var si = v ? 'previousSibling' : 'nextSibling',
+					ch = v ? 'lastChild' : 'firstChild';
+				if (v) o--;
+				if (o >= 0 && o < n.childNodes.length){
+					n = n.childNodes[o];
+					if (t)
+						while(n[ch] /*&& !isItem(n)*/)
+							n = n[ch];
+				} else if (!t){
+					do {
+						if (n[si]) { n = n[si]; break; }
+						n = n.parentNode;
+					} while(n != on);
+				}
+				return n;
+			}
+
+			if (reverse){ var t = sn; sn = en; en = t; t = so; so = eo; eo = t; }
+			
+			sn = getN(sn, so, reverse, topDown, en);
+			en = getN(en, eo, !reverse, !topDown, sn);
+			
+			return {
+				reset: function(){ this.current = false; },
+				fetch: function(){
+					if (!this.current) return this.current = sn;
+					if (this.current == en) return false;
+					var c = this.current,
+						si = reverse ? 'previousSibling' : 'nextSibling',
+						ch = reverse ? 'lastChild' : 'firstChild';
+					if (topDown){
+						if (!c[si]) return this.current = c.parentNode;
+						c = c[si];
+						while(c[ch] /*&& !isItem(c)*/)
+							c = c[ch];
+						return this.current = c;
+					}
+					if (c[ch]) return this.current = c[ch];
+					while(!c[si]){
+						c = c.parentNode;
+						if (c == en) return this.current = c;
+					}
+					return this.current = c[si];
+				}
+			};
+		},
+		
+		forEachElement: function(fn, match){
+			
 		}
 		
 	});
 
 })();
 
-Range.create = function (r){
+Range.create = function(r){
 	if (!r || r.getAncestor) return r;
 	for(var k in Range.Prototype) if (k != 'create' && !r[k]) r[k] = Range.Prototype[k];
 	return r;
