@@ -11,28 +11,36 @@ Script: Element.Measure.js
 
 	Authors:
 		Aaron Newton
-		Daniel Steigerwald
 
 */
 
 Element.implement({
 
 	measure: function(fn){
+		var vis = function(el) {
+			return !!(el.offsetHeight || el.offsetWidth);
+		};
+		if (vis(this)) return fn.apply(this);
+		var parent = this.getParent(),
+			toMeasure = [], 
+			restorers = [];
+		while (!vis(parent) && parent != document.body) {
+			toMeasure.push(parent.expose());
+			parent = parent.getParent();
+		}
 		var restore = this.expose();
 		var result = fn.apply(this);
 		restore();
+		toMeasure.each(function(restore){
+			restore();
+		});
 		return result;
 	},
 
 	expose: function(){
-		if (this.getStyle('display') != 'none') return $empty;
-		var before = {};
-		var styles = { visibility: 'hidden', display: 'block', position:'absolute' };
-		$each(styles, function(value, style){
-			before[style] = this.style[style]||'';
-		}, this);
-		this.setStyles(styles);
-		return (function(){ this.setStyles(before); }).bind(this);
+		if (this.style.display != 'none') return $empty;
+		var before = this.style.cssText;
+		return this.set('style', 'display: block; position: absolute; visibility: hidden').set.pass(['style', before], this);
 	},
 
 	getDimensions: function(options){

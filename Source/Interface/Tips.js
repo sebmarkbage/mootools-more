@@ -7,6 +7,7 @@ Script: Tips.js
 
 	Authors:
 		Valerio Proietti
+		Christoph Pojer
 */
 
 var Tips = new Class({
@@ -57,13 +58,14 @@ var Tips = new Class({
 	
 	getTip: function(){
 		return new Element('div', {
+			'class': this.options.className,
 			styles: {
 				visibility: 'hidden',
+				display: 'none',
 				position: 'absolute',
 				top: 0,
 				left: 0
-			},
-			'class': this.options.className
+			}
 		}).adopt(
 			new Element('div', {'class': 'tip-top'}),
 			this.container,
@@ -96,7 +98,7 @@ var Tips = new Class({
 			
 			element.eliminate('tip:enter').eliminate('tip:leave').eliminate('tip:move');
 			
-			if(!this.restore) return;
+			if (!this.restore) return;
 			
 			var original = element.retrieve('tip:native');
 			if (original) element.set(this.restore, original);
@@ -110,7 +112,6 @@ var Tips = new Class({
 		
 		['title', 'text'].each(function(value){
 			var content = element.retrieve('tip:' + value);
-			
 			if (!content) return;
 			
 			this[value + 'Element'] = new Element('div', {'class': 'tip-' + value}).inject(this.container);
@@ -119,12 +120,13 @@ var Tips = new Class({
 		
 		this.timer = $clear(this.timer);
 		this.timer = this.show.delay(this.options.showDelay, this, element);
-
+		this.tip.setStyle('display', 'block');
 		this.position((!this.options.fixed) ? event : {page: element.getPosition()});
 	},
 	
 	elementLeave: function(event, element){
 		$clear(this.timer);
+		this.tip.setStyle('display', 'none');
 		this.timer = this.hide.delay(this.options.hideDelay, this, element);
 	},
 	
