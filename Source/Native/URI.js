@@ -66,7 +66,12 @@ var URI = new Class({
 	toAbsolute: function(baseURI){ return this.get('absolute', baseURI) || this.get('href'); },
 	toRelative: function(baseURI){ return this.get('relative', baseURI) || this.get('href'); },
 
-	toString: function(){ return this.get('href'); }
+	toString: function(){ return this.get('href'); },
+	
+	go: function(){
+		document.location.href = this.toString();
+	}
+
 });
 
 (function(){
@@ -222,9 +227,11 @@ var aliases = {
 	getUsername: function(){ return this.get('user') || this.get('username'); },
 	setUsername: function(value){ return this.set('user', value).set('username', value); },
 	getQuery: function(){ return this.get('search') || this.get('headers'); },
-	setQuery: function(value){ return this.set('search', value).set('headers', value); }
+	setQuery: function(value){ return this.set('search', value).set('headers', value); },
+	getFragment: function(){ return this.get('hash'); },
+	setFragment: function(value){ this.set('hash', value); }
 };
-['protocol', 'password', 'hostname', 'port', 'directory', 'file', 'hash', 'subject', 'body', 'script', 'email'].each(function(part){
+['protocol', 'password', 'hostname', 'port', 'directory', 'file', 'subject', 'body', 'script', 'email'].each(function(part){
 	var capitalizedPart = part.capitalize();
 	aliases['get' + capitalizedPart] = function(){ return this.get.apply(this, [part].extend(arguments)); }
 	aliases['set' + capitalizedPart] = function(){ return this.set.apply(this, [part].extend(arguments)); }

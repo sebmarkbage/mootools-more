@@ -1,30 +1,38 @@
-String Subclass: URI {#URI}
-========================
+Class: URI {#URI}
+=================
 
-Extends a *string* to add numerous methods useful for managing URIs.
-
-Usage {#Usage}
---------------
-
-Pass a *string* to the URI subclass and it will extend it, returning a new string-like object with new methods useful for managing that URI. 
+Creates a new URI Class, that can be used to parse, and modify URIs in various schemes.
 
 ### Syntax
 
-	var myURI = new URI(['http://www.test.com:8383/the/path.html?query=value#anchor']);
+	var myURI = new URI([[baseURI], relativeURI]);
 
-### Returns
+### Arguments
+1. baseURI - (*mixed*, optional) a string or URI that the relativeURI will be relative to. Defaults to the current document base URI.
+2. relativeURI - (*mixed*, optional) a URI object or a full or partial URI string. If a partial string is used, it will be made into a full URI relative to the baseURI. Defaults to the current document base URI.
 
-* *URI* - (*string*; optional) - like object that has new methods useful for managing the URI. If not declared the window's current location is used.
+### Returns:
 
-### Notes
+* (*object*) A new URI instance.
 
-* If you pass the extended *string* to *typeof* it will return "object". However, if you pass it to MooTools' *$type* it will return "string".
-* If you test the string against another string it will work as expected (i.e. *if (myURI == 'http://www.test.com...')*).
+### Examples:
+	var myURI = new URI();
+	// returns the document base
+	myURI = new URI('../the/path.html?query=value#anchor');
+	// returns a full URI relative to the document base
+	myURI = new URI('http://www.test.com:8383/the/path.html?query=value#anchor');
+	// returns the same as
+	myURI = new URI('http://www.test.com:8383/otherpath/',
+		'../the/path.html?query=value#anchor');
+
+	myURI.setProtocol('https');
+	myURI.setDomain('www.foo.com');
+	//etc.
 
 URI Method: toString {#URI:toString}
 ------------------------------------------
 
-Returns an regular *string* without the URI extensions.
+Returns an full URI as a *string*.
 
 ### Syntax
 
@@ -32,12 +40,60 @@ Returns an regular *string* without the URI extensions.
 
 ### Returns
 
-* (*string*) the unaltered url.
+* (*string*) the full URI string.
+
+URI Method: toRelative {#URI:toRelative}
+------------------------------------------
+
+Returns a partial URI *string* relative to the base URI or a full URI if they don't share scheme, domain, port etc.
+
+### Syntax
+
+	myURI.toRelative([baseURI]);
+
+### Arguments
+1. baseURI - (*mixed*, optional) a string or URI that the generated path will be relative to. Defaults to the current document base URI.
+
+### Returns
+
+* (*string*) a partial or full URI string.
+
+### Examples:
+
+	var myURI = new URI('http://example.com/the/path/file.html');
+	myURI.toRelative('http://example.com/other/path/');
+	// '../../the/path/file.html'
+	myURI.toRelative('http://otherdomain.com/');
+	// 'http://example.com/the/path/file.html'
+
+URI Method: toAbsolute {#URI:toAbsolute}
+------------------------------------------
+
+Returns a partial rooted URI *string* or a full URI if the URI doesn't share scheme, domain, port etc. with the baseURI.
+
+### Syntax
+
+	myURI.toAbsolute([baseURI]);
+
+### Arguments
+1. baseURI - (*mixed*, optional) a string or URI that the generated path will be relative to. Defaults to the current document base URI.
+
+### Returns
+
+* (*string*) a partial rooted or full URI string.
+
+### Examples:
+
+	var myURI = new URI('http://example.com/the/path/file.html');
+	myURI.toAbsolute('http://example.com/other/path/');
+	// '/the/path/file.html'
+	myURI.toAbsolute('http://otherdomain.com/');
+	// 'http://example.com/the/path/file.html'
 
 URI Method: set {#URI:set}
 --------------------------
 
-Set's a portion of the URI to the specified value.
+Set's a portion of the URI to the specified value. Different URI schemes has different valid portions. Typically you would use one of the named methods instead. Such as *setDomain* or *setQuery*.
 
 ### Syntax
 
@@ -45,32 +101,23 @@ Set's a portion of the URI to the specified value.
 
 ### Arguments
 
-1. type - (*string*, optional) url with a querystring to parse; defaults to *window.location*
+1. part - (*string*) a valid part for the current scheme.
+2. value - (*string*) the new value for the part.
 
 ### Example
 
 	myURI.set('protocol', 'https');
-	myURI.set('domain', 'www.foo.com');
+	myURI.set('hostname', 'www.foo.com');
 	//etc.
 
 ### Returns
 
 * (*URI*) This instance of *URI*.
 
-### Valid parts
-
-* protocol - (*string*) 'http', 'https', 'ftp', etc.
-* domain - (*string*) 'www.example.com', 'exmaple.com', 'subdomain.example.com', etc.
-* port - (*string* or *integer*) 80, 8080, etc.
-* path - (*string*) '/directory/file.html'
-* query - (*string*) 'foo=bar&something=else' (the *?* is added for you)
-* fragment - (*string*)  'anAnchor' (the *#* is added for you)
-* data - (*object*) an object of key/value pairs to set the query to (*{foo: 'bar', something: 'else'}*)
-
 URI Method: get {#URI:get}
 --------------------------
 
-Returns the current value for the specified portion of the URI.
+Returns the current value for the specified portion of the URI. Typically you would use one of the named methods instead. Such as *getProtocol* or *getDomain*.
 
 ### Syntax
 
@@ -78,22 +125,64 @@ Returns the current value for the specified portion of the URI.
 
 ### Example
 
-	myURI.get('protocol'); //returns "http", for example
-	myURI.get('domain'); //returns "www.example.com", for example
+	myURI.get('protocol'); //returns "http:", for example
+	myURI.get('hostname'); //returns "www.example.com", for example
 
 ### Returns
 
-* *mixed* - usually returns a *string*, but in the case of 'data' returns an *object*.
+* *mixed* - usually returns a *string*, but depending on the scheme it can return an *object*.
 
-### Valid parts
+### Valid parts per URI scheme
 
-* protocol - (returns *string*) 'http', 'https', 'ftp', etc.
-* domain - (returns *string*) 'www.example.com', 'exmaple.com', 'subdomain.example.com', etc.
-* port - (returns *string*) 80, 8080, etc.
-* path - (returns *string*) '/directory/file.html'
-* query - (returns *string*) 'foo=bar&something=else' (the *?* is added for you)
-* fragment - (returns *string*)  'anAnchor' (the *#* is added for you)
-* data - (returns *object*) an *object* of key/value pairs to set the query to (*{foo: 'bar', something: 'else'}*)
+**http, ftp, file, etc.**
+
+* protocol - (*string*) 'http:', 'https:', 'ftp:', etc.
+* user - (*string*) username if specified
+* password - (*string*) password if specified
+* hostname - (*string*) 'www.example.com', 'example.com', 'subdomain.example.com', etc.
+* port - (*string* or *integer*) 80, 8080, etc.
+* pathname - (*string*) '/directory/file.html' equivalent to directory + file
+* directory - (*string*) '/directory/'
+* file - (*string*) 'file.html'
+* search - (*string*) '?foo=bar&something=else'
+* hash - (*string*)  '#anAnchor'
+
+**mailto**
+
+* protocol - (*string*) always 'mailto:'
+* username - (*string*) 'my.name' the part of the e-mail adress before the @
+* hostname - (*string*) 'example.com' the part of the e-mail adress after the @
+* email - (*string*) 'my.name@example.com' equivalent to username + '@' + hostname
+* headers - (*string*) '?subject=Hi&body=Your%20message'
+* subject - (*string*) the subject part of the headers as a non-encoded string
+* body - (*string*) the body part of the headers as a non-encoded string
+
+**javascript**
+
+* protocol - (*string*) always 'javascript:'
+* script - (*string*) the javascript code to be executed if the URI is visited
+
+See also [URI Schemes][] for a list of other schemes.
+
+URI Method aliases
+------------------
+
+To get consistent behavior across several schemes, use one of the name methods instead of get/set. Here's a list of common methods and their equivalent get/set part.
+
+* getProtocol/setProtocol - get/set('protocol') {#URI:getProtocol/setProtocol}
+* getUsername/setUsername - get/set('user' or 'username') {#URI:getUsername/setUsername}
+* getPassword/setPassword - get/set('password') {#URI:getPassword/setPassword}
+* getDomain/setDomain - get/set('hostname') {#URI:getDomain/setDomain}
+* getPort/setPort - get/set('port') {#URI:getPort/setPort}
+* getDirectory/setDirectory - get/set('directory') {#URI:getDirectory/setDirectory}
+* getFile/setFile - get/set('file') {#URI:getFile/setFile}
+* getPath/setPath - get/set('pathname') {#URI:getPath/setPath}
+* getQuery/setQuery - get/set('query') {#URI:getQuery/setQuery}
+* getFragment/setFragment - get/set('hash') {#URI:getFragment/setFragment}
+* getSubject/setSubject - get/set('subject') {#URI:getSubject/setSubject}
+* getBody/setBody - get/set('body') {#URI:getBody/setBody}
+* getScript/setScript - get/set('script') {#URI:getScript/setScript}
+* getEmail/setEmail - get/set('email') {#URI:getEmail/setEmail}
 
 URI Method: setData {#URI:setData}
 ------------------------------------------
@@ -137,29 +226,15 @@ Returns the query string values as an *object*. Same as *URI.get('data')*.
 
 * *string* - the value for the given key
 
-URI Method: clearData {#URI:clearData}
---------------------------------------
-
-Clears the query string values entirely.
-
-### Syntax
-
-	myURI.clearData();
-
 URI Method: go {#URI:go}
 ------------------------
 
-Loads the url into the document location.
+Loads the URI into the document location. Executes JavaScript if it's a javascript-URI.
 
 ### Syntax
 
 	myURI.go();
 
-Method Translations
-===================
-
-All the URI parts ('protocol', 'domain', 'port', 'query', and 'hash') have corresponding *get<Part>* methods. So you can call *myURI.get('domain')* or *myURI.getDomain()*. The same is true of *set* - you can call *myURI.set('domain', 'www.foo.com')* or *myURI.setDomain('www.foo.com')*. The *set/get(part)* method is the prefered method.
-  
 String Method: parseQueryString {#String:parseQueryString}
 ----------------------------------------------------------
 
@@ -212,3 +287,6 @@ Removes from a query string any keys that have empty values.
 
 * (*string*) the string appropriate key/values removed
   
+
+
+  [URI Schemes]: http://en.wikipedia.org/wiki/URI_scheme
